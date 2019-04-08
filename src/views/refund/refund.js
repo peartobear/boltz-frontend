@@ -1,11 +1,11 @@
 import React from 'react';
 import PropTypes from 'prop-types';
 import injectSheet from 'react-jss';
+import View from '../../components/view';
+import Prompt from '../../components/prompt';
 import Controls from '../../components/controls';
 import Background from '../../components/background';
 import StepsWizard from '../../components/stepswizard';
-import Prompt from '../../components/prompt';
-import View from '../../components/view';
 import {
   InputDestinationAddress,
   UploadRefundFile,
@@ -14,7 +14,7 @@ import {
 
 const styles = theme => ({
   wrapper: {
-    height: '100%',
+    flex: '1 0 100%',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -23,6 +23,14 @@ const styles = theme => ({
     fontWeight: '300',
   },
 });
+
+const uploadRefundFileText = (refundFile, txHash) => {
+  if (Object.keys(refundFile).length === 0) {
+    return 'Upload refund file';
+  } else if (txHash === '') {
+    return 'Paste transaction hash';
+  }
+};
 
 const Refund = ({
   classes,
@@ -35,7 +43,6 @@ const Refund = ({
   setDestinationAddress,
   startRefund,
   completeRefund,
-  refundTransaction,
   refundTransactionHash,
   isFetching,
 }) => {
@@ -61,6 +68,7 @@ const Refund = ({
               render={() => (
                 <UploadRefundFile
                   setRefundFile={setRefundFile}
+                  isUploaded={Object.keys(refundFile).length !== 0}
                   setTransactionHash={setTransactionHash}
                 />
               )}
@@ -78,7 +86,7 @@ const Refund = ({
               num={3}
               render={() => (
                 <CompleteRefund
-                  refundTransaction={refundTransaction}
+                  currency={refundFile.currency}
                   refundTransactionHash={refundTransactionHash}
                 />
               )}
@@ -92,7 +100,10 @@ const Refund = ({
                 <Controls
                   text={'Next'}
                   onPress={() => props.nextStage()}
-                  loadingText={'Upload refund file'}
+                  loadingText={uploadRefundFileText(
+                    refundFile,
+                    transactionHash
+                  )}
                   loadingStyle={classes.fileUpload}
                   loading={
                     Object.keys(refundFile).length === 0 ||
@@ -105,8 +116,9 @@ const Refund = ({
               num={2}
               render={props => (
                 <Controls
-                  loading={isFetching}
+                  loading={isFetching || !destinationAddress}
                   text={'Generate refund transaction'}
+                  mobile
                   onPress={() =>
                     startRefund(
                       refundFile,
@@ -150,7 +162,6 @@ Refund.propTypes = {
   setDestinationAddress: PropTypes.func.isRequired,
   startRefund: PropTypes.func.isRequired,
   completeRefund: PropTypes.func.isRequired,
-  refundTransaction: PropTypes.string,
   refundTransactionHash: PropTypes.string,
 };
 

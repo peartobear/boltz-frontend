@@ -4,15 +4,19 @@ import PropTypes from 'prop-types';
 
 const styles = theme => ({
   wrapper: {
+    border: 'none',
     resize: 'none',
+    fontSize: '18px',
+    borderRadius: '3px',
+    padding: '6px 12px',
+    wordBreak: 'break-all',
     width: p => `${p.width}px`,
     height: p => `${p.height}px`,
-    padding: '6px 12px',
     outline: p => (p.error ? '1px solid red' : 'none'),
     backgroundColor: theme.colors.lightGrey,
-    fontSize: '18px',
-    border: 'none',
-    borderRadius: '3px',
+    '@media (max-width: 425px)': {
+      width: () => `${300}px`,
+    },
   },
 });
 
@@ -22,10 +26,12 @@ const InputArea = ({
   height,
   width,
   onChange,
+  value,
   placeholder,
 }) => (
   <textarea
     autoFocus={autoFocus}
+    value={value}
     placeholder={placeholder}
     className={classes.wrapper}
     rows={height}
@@ -41,6 +47,7 @@ InputArea.propTypes = {
   onChange: PropTypes.func.isRequired,
   error: PropTypes.bool.isRequired,
   autoFocus: PropTypes.bool,
+  value: PropTypes.string,
   placeholder: PropTypes.string,
 };
 

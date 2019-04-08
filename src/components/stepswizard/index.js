@@ -14,6 +14,9 @@ const styles = theme => ({
     boxShadow: '0px 0px 30px -6px rgba(0,0,0,0.52)',
     backgroundColor: p => (p.dark ? theme.colors.aeroBlue : theme.colors.white),
     flexDirection: 'column',
+    '@media (max-width: 425px)': {
+      width: '100%',
+    },
   },
   progress: {
     width: '100%',
@@ -44,6 +47,7 @@ const styles = theme => ({
   },
   id: {
     color: 'gray',
+    margin: '10px',
     fontSize: '20px',
     justifyContent: 'center',
   },
@@ -128,14 +132,14 @@ class StepsWizard extends Component {
 }
 
 StepsWizard.propTypes = {
-  children: PropTypes.children,
+  children: PropTypes.node,
   classes: PropTypes.object,
   id: PropTypes.string,
   onExit: PropTypes.func,
   onClick: PropTypes.func,
   await: PropTypes.bool,
   alertOnExit: PropTypes.bool,
-  onExitmessage: PropTypes.oneOfType(PropTypes.string, PropTypes.func),
+  onExitmessage: PropTypes.oneOfType([PropTypes.string, PropTypes.func]),
   stage: PropTypes.number,
   range: PropTypes.number,
   dark: PropTypes.bool,

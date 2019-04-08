@@ -3,17 +3,16 @@ import PropTypes from 'prop-types';
 import injectSheet from 'react-jss';
 import View from '../../components/view';
 import Prompt from '../../components/prompt';
-import Loading from '../../components/loader';
+import Loading from '../../components/loading';
 import Controls from '../../components/controls';
 import Confetti from '../../components/confetti';
 import BackGround from '../../components/background';
 import StepsWizard from '../../components/stepswizard';
 import { InputInvoice, SendTransaction, DownloadRefund } from './steps';
-import { FEE } from '../../constants/fees';
 
 const styles = () => ({
   wrapper: {
-    height: '100%',
+    flex: '1 0 100%',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -21,6 +20,7 @@ const styles = () => ({
 
 const Swap = ({
   classes,
+  webln,
   setSwapInvoice,
   completeSwap,
   goHome,
@@ -48,7 +48,11 @@ const Swap = ({
             <StepsWizard.Step
               num={1}
               render={() => (
-                <InputInvoice swapInfo={swapInfo} onChange={setSwapInvoice} />
+                <InputInvoice
+                  swapInfo={swapInfo}
+                  webln={webln}
+                  onChange={setSwapInvoice}
+                />
               )}
             />
             <StepsWizard.Step
@@ -72,7 +76,19 @@ const Swap = ({
                 />
               )}
             />
-            <StepsWizard.Step num={4} render={() => <Confetti />} />
+            <StepsWizard.Step
+              num={4}
+              render={() => (
+                <Confetti
+                  notifie={style => (
+                    <span className={style}>
+                      You sent {swapInfo.baseAmount} {swapInfo.base} and
+                      received {swapInfo.quoteAmount} {swapInfo.quote}
+                    </span>
+                  )}
+                />
+              )}
+            />
           </StepsWizard.Steps>
           <StepsWizard.Controls>
             <StepsWizard.Control
@@ -80,7 +96,7 @@ const Swap = ({
               render={props => (
                 <Controls
                   loading={swapStatus.error}
-                  text={`Fee: ${FEE} ${swapInfo.base}`}
+                  text={`Next`}
                   loadingText={'Invalid invoice'}
                   onPress={() => {
                     startSwap(swapInfo, props.nextStage);
@@ -92,6 +108,7 @@ const Swap = ({
               num={2}
               render={props => (
                 <Controls
+                  mobile
                   text={'I have downloaded the refund file'}
                   onPress={() => {
                     props.nextStage();
@@ -103,14 +120,14 @@ const Swap = ({
               num={3}
               render={props => (
                 <Controls
+                  mobile
                   text={swapStatus.message}
                   loading={swapStatus.pending}
                   error={swapStatus.error}
                   errorText={swapStatus.message}
-                  errorAction={() => startSwap(swapInfo, props.nextStage)}
+                  errorRender={() => {}}
                   loadingRender={() => <Loading />}
                   onPress={() => {
-                    completeSwap();
                     props.nextStage();
                   }}
                 />
@@ -119,7 +136,13 @@ const Swap = ({
             <StepsWizard.Control
               num={4}
               render={() => (
-                <Controls text={'Swap Again!'} onPress={() => goHome()} />
+                <Controls
+                  text={'Swap Again!'}
+                  onPress={() => {
+                    completeSwap();
+                    goHome();
+                  }}
+                />
               )}
             />
           </StepsWizard.Controls>
@@ -133,6 +156,7 @@ Swap.propTypes = {
   classes: PropTypes.object.isRequired,
   history: PropTypes.object.isRequired,
   goHome: PropTypes.func.isRequired,
+  webln: PropTypes.object,
   swapInfo: PropTypes.object,
   swapResponse: PropTypes.object,
   completeSwap: PropTypes.func,

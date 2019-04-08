@@ -1,7 +1,9 @@
 import * as actionTypes from '../../constants/actions';
 
 const initalState = {
+  webln: null,
   isFetching: false,
+  isReconnecting: false,
   swapInfo: {
     base: null,
     quote: null,
@@ -11,8 +13,12 @@ const initalState = {
     pair: null,
     address: null,
   },
-  swapResponse: {},
+  swapResponse: {
+    success: true,
+  },
   swapStatus: 'Waiting for confirmation...',
+
+  invalidAddress: false,
 };
 
 const reducer = (state = initalState, action) => {
@@ -33,6 +39,7 @@ const reducer = (state = initalState, action) => {
     case actionTypes.INIT_REVERSE_SWAP:
       return {
         ...state,
+        webln: action.payload.webln,
         swapInfo: {
           ...state.swapInfo,
           base: action.payload.base,
@@ -49,8 +56,9 @@ const reducer = (state = initalState, action) => {
         ...state,
         swapInfo: {
           ...state.swapInfo,
-          address: action.payload,
+          address: action.payload.address,
         },
+        invalidAddress: action.payload.error,
       };
 
     case actionTypes.SET_REVERSE_SWAP_STATUS:
@@ -59,8 +67,14 @@ const reducer = (state = initalState, action) => {
         swapStatus: action.payload,
       };
 
+    case actionTypes.SET_IS_RECONNECTING:
+      return {
+        ...state,
+        isReconnecting: action.payload,
+      };
+
     case actionTypes.COMPLETE_REVERSE_SWAP:
-      return initalState;
+      return { ...initalState };
 
     default:
       return state;

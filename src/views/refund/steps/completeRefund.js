@@ -1,7 +1,9 @@
 import React from 'react';
 import injectSheet from 'react-jss';
 import PropTypes from 'prop-types';
+import Link from '../../../components/link';
 import View from '../../../components/view';
+import { getExplorer } from '../../../scripts/utils';
 import { FaCheckCircle } from 'react-icons/fa';
 
 const CompleteRefundStyles = theme => ({
@@ -17,40 +19,38 @@ const CompleteRefundStyles = theme => ({
   },
   title: {
     margin: '15px',
-    fontSize: '30px',
+    fontSize: '42px',
+    fontWeight: 300,
   },
   transaction: {
     wordBreak: 'break-all',
     paddingLeft: '1vw',
     paddingRight: '1vw',
+    fontSize: '24px',
+    fontWeight: 300,
+    '@media (max-width: 425px)': {
+      fontSize: '16px',
+    },
   },
 });
 
-const StyledCompleteRefund = ({
-  classes,
-  refundTransaction,
-  refundTransactionHash,
-}) => (
+const StyledCompleteRefund = ({ classes, currency, refundTransactionHash }) => (
   <View className={classes.wrapper}>
-    <FaCheckCircle size={240} className={classes.icon} />
-    <span className={classes.title}>
-      Refund transaction successfully broadcasted!
-    </span>
-    <p>
-      Your refund transaction hash: <br />
-      <code className={classes.transaction}>{refundTransactionHash}</code>
-    </p>
-
-    <p>
-      Raw transaction: <br />
-      <code className={classes.transaction}>{refundTransaction}</code>
+    <FaCheckCircle size={200} className={classes.icon} />
+    <span className={classes.title}> Success! </span>
+    <p className={classes.transaction}>
+      <Link
+        to={`${getExplorer(currency)}/${refundTransactionHash}`}
+        text={'Click here'}
+      />{' '}
+      to see the refund transaction
     </p>
   </View>
 );
 
 StyledCompleteRefund.propTypes = {
   classes: PropTypes.object.isRequired,
-  refundTransaction: PropTypes.string.isRequired,
+  currency: PropTypes.string.isRequired,
   refundTransactionHash: PropTypes.string.isRequired,
 };
 

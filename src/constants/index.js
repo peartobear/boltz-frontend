@@ -1,6 +1,46 @@
 import { Networks } from 'boltz-core';
 
+const capitalizeFirstLetter = input => {
+  return input.charAt(0).toUpperCase() + input.slice(1);
+};
+
+export const SwapUpdateEvent = {
+  InvoicePaid: 'invoice.paid',
+  InvoiceSettled: 'invoice.settled',
+  InvoiceFailedToPay: 'invoice.failedToPay',
+
+  TransactionRefunded: 'transaction.refunded',
+  TransactionConfirmed: 'transaction.confirmed',
+};
+
+/**
+ * Values from the environment
+ */
+
+// API endpoint
 export const boltzApi = process.env.REACT_APP_BOLTZ_API;
 
-export const bitcoinNetwork = Networks[process.env.REACT_APP_BITCOIN_NETWORK];
-export const litecoinNetwork = Networks[process.env.REACT_APP_LITECOIN_NETWORK];
+// LND node URIs
+export const bitcoinLnd = process.env.REACT_APP_BITCOIN_LND;
+export const litecoinLnd = process.env.REACT_APP_LITECOIN_LND;
+
+// Network configurations
+export const network = process.env.REACT_APP_NETWORK;
+
+export const bitcoinNetwork =
+  Networks[`bitcoin${capitalizeFirstLetter(network)}`];
+export const litecoinNetwork =
+  Networks[`litecoin${capitalizeFirstLetter(network)}`];
+
+export const bitcoinExplorer = process.env.REACT_APP_BITCOIN_EXPLORER;
+export const litecoinExplorer = process.env.REACT_APP_LITECOIN_EXPLORER;
+
+// Sample values
+export const lockupTransactionHash =
+  process.env.REACT_APP_LOCKUP_TRANSACTION_HASH;
+
+export const bitcoinAddress = process.env.REACT_APP_BITCOIN_ADDRESS;
+export const litecoinAddress = process.env.REACT_APP_LITECOIN_ADDRESS;
+
+export const bitcoinInvoice = process.env.REACT_APP_BITCOIN_INVOICE;
+export const litecoinInvoice = process.env.REACT_APP_LITECOIN_INVOICE;

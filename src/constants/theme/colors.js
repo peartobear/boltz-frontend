@@ -8,8 +8,10 @@ const colors = {
   lightGrey: '#D3D3D3',
   mischkaGrey: '#DDD9DF',
   tundoraGrey: '#4A4A4A',
+  hoverGrey: '#9D9D9D',
   white: '#fff',
   red: '#FF0000',
+  black: '#000',
 };
 
 export default colors;

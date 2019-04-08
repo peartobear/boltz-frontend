@@ -12,13 +12,18 @@ class Navigation {
   }
 
   goHome = () => navAction(routes.home);
+
   goSwap = () => navAction(routes.swap);
   goReverseSwap = () => navAction(routes.reverseSwap);
+  goReverseSwapTimelockExpired = () =>
+    navAction(routes.reverseSwapTimelockExpired);
   goSwapConfirm = () => navAction(routes.swapConfirm);
   goSwapDownloadRefund = () => navAction(routes.swapDownloadRefund);
   goSwapDone = () => navAction(routes.swapDone);
 
   goRefund = () => navAction(routes.refund);
+
+  goFaq = () => navAction(routes.faq);
 }
 
 export default Navigation;

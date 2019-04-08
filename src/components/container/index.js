@@ -1,18 +1,19 @@
 import React from 'react';
 import injectSheet from 'react-jss';
+import View from '../view';
 import PropTypes from 'prop-types';
 
 const styles = () => ({
   wrapper: {
-    height: '100vh',
-    width: '100vw',
+    flexDirection: 'column',
+    flex: '0 0 content',
   },
 });
 
 const Container = ({ classes, children, style }) => (
-  <div className={classes.wrapper} style={style ? style : undefined}>
+  <View className={classes.wrapper} style={style ? style : undefined}>
     {children}
-  </div>
+  </View>
 );
 
 Container.propTypes = {

@@ -1,5 +1,4 @@
 import axios from 'axios';
-import { Set } from 'core-js';
 import { boltzApi } from '../../constants';
 import { splitPairId } from '../../scripts/utils';
 import * as actionTypes from '../../constants/actions';
@@ -13,49 +12,19 @@ const pairsResponse = data => ({
   payload: data,
 });
 
-const getRates = pairs => {
-  const rates = {};
+const loadingResourceError = message => ({
+  type: actionTypes.RESOURCE_ERROR,
+  payload: message,
+});
 
-  for (const pair in pairs) {
-    const rate = pairs[pair];
-
-    // Set the rate for a sell order
-    rates[pair] = {
-      rate: rate,
-      pair: {
-        id: pair,
-        orderSide: 'sell',
-      },
-    };
-
-    // And for a buy order
-    const { base, quote } = splitPairId(pair);
-    rates[`${quote}/${base}`] = {
-      rate: 1 / rate,
-      pair: {
-        id: pair,
-        orderSide: 'buy',
-      },
-    };
-  }
-
-  return rates;
-};
-
-const getCurrencies = pairs => {
+const parseCurrencies = pairs => {
   const currencies = [];
-  const contains = new Set();
-
-  const addToArray = currency => {
-    if (!contains.has(currency)) {
-      contains.add(currency);
-      currencies.push(currency);
-    }
-  };
 
   const pushCurrency = currency => {
-    addToArray(currency);
-    addToArray(`${currency} ⚡`);
+    if (!currencies.includes(currency)) {
+      currencies.push(currency);
+      currencies.push(`${currency} ⚡`);
+    }
   };
 
   for (const pair in pairs) {
@@ -68,23 +37,116 @@ const getCurrencies = pairs => {
   return currencies;
 };
 
-export const getPairs = cb => {
+const parseRates = pairs => {
+  const rates = {};
+
+  for (const id in pairs) {
+    const pair = pairs[id];
+
+    // Set the rate for a sell order
+    rates[id] = {
+      pair: id,
+      rate: pair.rate,
+      orderSide: 'sell',
+    };
+
+    // And for a buy order
+    const { base, quote } = splitPairId(id);
+
+    if (base !== quote) {
+      rates[`${quote}/${base}`] = {
+        pair: id,
+        rate: 1 / pair.rate,
+        orderSide: 'buy',
+      };
+    }
+  }
+
+  return rates;
+};
+
+const parseLimits = (pairs, rates) => {
+  const limits = {};
+
+  for (const id in pairs) {
+    const pair = pairs[id];
+    const { base, quote } = splitPairId(id);
+
+    limits[id] = pair.limits;
+
+    // Add the limits for buy orders
+    if (base !== quote) {
+      const reverseId = `${quote}/${base}`;
+      const reverseRate = rates[reverseId].rate;
+
+      limits[reverseId] = {
+        minimal: Math.round(pair.limits.minimal / reverseRate),
+        maximal: Math.round(pair.limits.maximal / reverseRate),
+      };
+    }
+  }
+
+  return limits;
+};
+
+const parseFees = pairs => {
+  const minerFees = {};
+  const percentages = {};
+
+  for (const id in pairs) {
+    const fees = pairs[id].fees;
+    const percentage = fees.percentage / 100;
+
+    const { base, quote } = splitPairId(id);
+
+    percentages[id] = percentage;
+    minerFees[base] = fees.minerFees.baseAsset;
+
+    if (base !== quote) {
+      percentages[`${quote}/${base}`] = percentage;
+
+      minerFees[quote] = fees.minerFees.quoteAsset;
+    }
+  }
+
+  return {
+    minerFees,
+    percentages,
+  };
+};
+
+export const getPairs = () => {
   const url = `${boltzApi}/getpairs`;
 
   return dispatch => {
     dispatch(pairsRequest());
-    axios.get(url).then(response => {
-      const rates = getRates(response.data);
-      const currencies = getCurrencies(response.data);
+    axios
+      .get(url)
+      .then(response => {
+        const currencies = parseCurrencies(response.data);
 
-      dispatch(
-        pairsResponse({
-          rates,
-          currencies,
-        })
-      );
+        const rates = parseRates(response.data);
+        const limits = parseLimits(response.data, rates);
 
-      cb();
-    });
+        const fees = parseFees(response.data);
+
+        dispatch(
+          pairsResponse({
+            fees,
+            rates,
+            limits,
+            currencies,
+          })
+        );
+      })
+      .catch(error => {
+        const errorMessage = error.toString();
+        dispatch(
+          loadingResourceError({
+            message: errorMessage,
+            title: 'Could not get rates',
+          })
+        );
+      });
   };
 };

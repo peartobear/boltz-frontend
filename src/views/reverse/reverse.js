@@ -1,124 +1,243 @@
 import React from 'react';
 import PropTypes from 'prop-types';
 import injectSheet from 'react-jss';
+import { lostConnection, reconnected } from '../../constants/messages';
 import View from '../../components/view';
 import Prompt from '../../components/prompt';
+import Loading from '../../components/loading';
 import Controls from '../../components/controls';
 import Confetti from '../../components/confetti';
-import { InputAddress, PayInvoice } from './steps';
 import BackGround from '../../components/background';
+import { getCurrencyName } from '../../scripts/utils';
 import StepsWizard from '../../components/stepswizard';
+import DataStorage from '../reversetimelock/dataStorage';
+import { notificationData } from '../../scripts/utils';
+import { InputAddress, PayInvoice, LockingFunds } from './steps';
+import ReactNotification from 'react-notifications-component';
 
 const styles = () => ({
   wrapper: {
-    height: '100%',
+    flex: '1 0 100%',
     alignItems: 'center',
     justifyContent: 'center',
   },
 });
 
-const ReverseSwap = ({
-  classes,
-  setReverseSwapAddress,
-  startReverseSwap,
-  completeSwap,
-  goHome,
-  nextStage,
-  swapInfo,
-  swapResponse,
-  isFetching,
-  swapStatus,
-}) => {
-  return (
-    <BackGround>
-      <Prompt />
-      <View className={classes.wrapper}>
-        <StepsWizard
-          range={3}
-          stage={1}
-          id={swapResponse ? swapResponse.id : null}
-          onExit={() => {
-            if (window.confirm('Are you sure you want to exit')) {
-              completeSwap();
-              goHome();
-            }
-          }}
-        >
-          <StepsWizard.Steps>
-            <StepsWizard.Step
-              num={1}
-              render={() => (
-                <InputAddress
-                  swapInfo={swapInfo}
-                  onChange={setReverseSwapAddress}
-                />
-              )}
-            />
-            <StepsWizard.Step
-              num={2}
-              render={() => (
-                <PayInvoice
-                  asset={swapInfo.base}
-                  invoice={swapResponse.invoice}
-                />
-              )}
-            />
-            <StepsWizard.Step num={3} render={() => <Confetti />} />
-          </StepsWizard.Steps>
-          <StepsWizard.Controls>
-            <StepsWizard.Control
-              num={1}
-              render={props => (
-                <Controls
-                  loading={isFetching}
-                  text={'Next'}
-                  loadingText={swapStatus}
-                  onPress={() => {
-                    startReverseSwap(swapInfo, props.nextStage);
-                  }}
-                />
-              )}
-            />
-            <StepsWizard.Control
-              num={2}
-              render={() => (
-                <Controls
-                  loading={isFetching}
-                  text={'Done'}
-                  loadingText={swapStatus}
-                  onPress={() => {
-                    completeSwap();
-                    nextStage();
-                  }}
-                />
-              )}
-            />
-            <StepsWizard.Control
-              num={3}
-              render={() => (
-                <Controls text={'Swap Again!'} onPress={() => goHome()} />
-              )}
-            />
-          </StepsWizard.Controls>
-        </StepsWizard>
-      </View>
-    </BackGround>
-  );
-};
+class ReverseSwap extends React.Component {
+  constructor(props) {
+    super(props);
+    this.notificationDom = React.createRef();
+  }
+
+  componentDidUpdate(prevProps) {
+    const { isReconnecting, swapFailResponse, swapResponse } = this.props;
+
+    if (isReconnecting && !prevProps.isReconnecting) {
+      this.addNotification(lostConnection, 0);
+    }
+    if (!isReconnecting && prevProps.isReconnecting) {
+      this.addNotification(reconnected);
+    }
+
+    if (!swapFailResponse && !isReconnecting) {
+      this.addNotification(
+        {
+          title: 'Failed to execute reverse swap',
+          message: swapResponse,
+        },
+        0
+      );
+    }
+  }
+
+  addNotification = (message, type) => {
+    this.notificationDom.current.addNotification(
+      notificationData(message, type)
+    );
+  };
+
+  render() {
+    const {
+      webln,
+      goHome,
+      classes,
+      swapInfo,
+      swapStatus,
+      isFetching,
+      swapResponse,
+      completeSwap,
+      invalidAddress,
+      startReverseSwap,
+      swapFailResponse,
+      goTimelockExpired,
+      setReverseSwapAddress,
+    } = this.props;
+
+    DataStorage.swapInfo = {
+      asset: swapInfo.quote,
+      amount: swapInfo.quoteAmount,
+    };
+
+    if (swapResponse) {
+      DataStorage.swapInfo.id = swapResponse.id;
+    }
+
+    return (
+      <BackGround>
+        <ReactNotification ref={this.notificationDom} />
+        <Prompt />
+        <View className={classes.wrapper}>
+          <StepsWizard
+            range={4}
+            stage={1}
+            id={swapResponse ? swapResponse.id : null}
+            onExit={() => {
+              if (window.confirm('Are you sure you want to exit')) {
+                completeSwap();
+                goHome();
+              }
+            }}
+          >
+            <StepsWizard.Steps>
+              <StepsWizard.Step
+                num={1}
+                render={() => (
+                  <InputAddress
+                    swapInfo={swapInfo}
+                    onChange={setReverseSwapAddress}
+                  />
+                )}
+              />
+              <StepsWizard.Step
+                num={2}
+                render={() => (
+                  <LockingFunds
+                    swapInfo={swapInfo}
+                    swapResponse={swapResponse}
+                  />
+                )}
+              />
+              <StepsWizard.Step
+                num={3}
+                render={() => (
+                  <PayInvoice
+                    swapInfo={swapInfo}
+                    swapResponse={swapResponse}
+                    webln={webln}
+                  />
+                )}
+              />
+              <StepsWizard.Step
+                num={4}
+                render={() => (
+                  <Confetti
+                    notifie={style => (
+                      <span className={style}>
+                        You sent {swapInfo.baseAmount} {swapInfo.base} and
+                        received {swapInfo.quoteAmount} {swapInfo.quote}
+                      </span>
+                    )}
+                  />
+                )}
+              />
+            </StepsWizard.Steps>
+            <StepsWizard.Controls>
+              <StepsWizard.Control
+                num={1}
+                render={props => (
+                  <Controls
+                    error={invalidAddress}
+                    errorText={`Invalid ${getCurrencyName(
+                      swapInfo.quote
+                    )} address`}
+                    errorRender={() => {}}
+                    loading={!swapInfo.address && !invalidAddress}
+                    loadingText={`Input a valid ${getCurrencyName(
+                      swapInfo.quote
+                    )} address`}
+                    loadingRender={() => {}}
+                    text={'Next'}
+                    onPress={() => {
+                      if (swapInfo.address && swapInfo.address !== '') {
+                        startReverseSwap(
+                          swapInfo,
+                          props.nextStage,
+                          goTimelockExpired
+                        );
+                        props.nextStage();
+                      }
+                    }}
+                  />
+                )}
+              />
+              <StepsWizard.Control
+                num={2}
+                render={props => (
+                  <Controls
+                    mobile
+                    loading={isFetching}
+                    loadingText={'Locking your funds...'}
+                    loadingRender={() => <Loading />}
+                    error={!swapFailResponse === true}
+                    errorAction={() =>
+                      startReverseSwap(
+                        swapInfo,
+                        props.nextStage,
+                        goTimelockExpired
+                      )
+                    }
+                    errorText={`Reverse swap failed`}
+                  />
+                )}
+              />
+              <StepsWizard.Control
+                num={3}
+                render={() => (
+                  <Controls
+                    mobile
+                    loading={isFetching}
+                    loadingText={swapStatus}
+                    loadingRender={() => <Loading />}
+                  />
+                )}
+              />
+              <StepsWizard.Control
+                num={4}
+                render={() => (
+                  <Controls
+                    text={'Swap Again!'}
+                    onPress={() => {
+                      completeSwap();
+                      goHome();
+                    }}
+                  />
+                )}
+              />
+            </StepsWizard.Controls>
+          </StepsWizard>
+        </View>
+      </BackGround>
+    );
+  }
+}
 
 ReverseSwap.propTypes = {
   classes: PropTypes.object.isRequired,
-  history: PropTypes.object.isRequired,
   isFetching: PropTypes.bool.isRequired,
+  isReconnecting: PropTypes.bool.isRequired,
   goHome: PropTypes.func.isRequired,
+  goTimelockExpired: PropTypes.func.isRequired,
+  webln: PropTypes.object,
   swapInfo: PropTypes.object,
   swapResponse: PropTypes.object,
+  swapFailResponse: PropTypes.bool.isRequired,
   completeSwap: PropTypes.func,
   setReverseSwapAddress: PropTypes.func,
   onExit: PropTypes.func,
   nextStage: PropTypes.func,
   startReverseSwap: PropTypes.func.isRequired,
   swapStatus: PropTypes.string.isRequired,
+  invalidAddress: PropTypes.bool.isRequired,
 };
 
 export default injectSheet(styles)(ReverseSwap);

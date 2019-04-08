@@ -1,8 +1,8 @@
 import React from 'react';
-import injectSheet from 'react-jss';
 import PropTypes from 'prop-types';
-import View from '../view';
+import injectSheet from 'react-jss';
 import { MdArrowForward } from 'react-icons/md';
+import View from '../view';
 
 const styles = theme => ({
   wrapper: {
@@ -20,7 +20,13 @@ const styles = theme => ({
     backgroundColor: theme.colors.red,
   },
   controls: { flex: 2, justifyContent: 'center', alignItems: 'center' },
-  text: { color: '#fff', fontWeight: '300' },
+  text: {
+    color: '#fff',
+    fontWeight: '300',
+    '@media (max-width: 425px)': {
+      fontSize: p => (p.mobile ? '20px' : undefined),
+    },
+  },
   errorCommand: {
     fontSize: '25px',
     paddingRight: '10px',
@@ -31,9 +37,6 @@ const styles = theme => ({
     height: '30px',
     width: '30px',
     color: theme.colors.white,
-  },
-  spinner: {
-    marginRight: '20px',
   },
 });
 
@@ -56,7 +59,7 @@ const Controls = ({
   return (
     <View
       className={error ? classes.error : classes.wrapper}
-      onClick={loading ? null : () => onPress()}
+      onClick={loading || error ? undefined : () => onPress()}
     >
       <View className={classes.controls}>
         {error ? (
@@ -70,11 +73,11 @@ const Controls = ({
       {error ? (
         errorRender ? (
           errorRender(classes.errorCommand, errorAction)
-        ) : (
+        ) : errorAction ? (
           <span className={classes.errorCommand} onClick={() => errorAction()}>
             Retry
           </span>
-        )
+        ) : null
       ) : loading && loadingRender ? (
         loadingRender()
       ) : (
@@ -88,14 +91,15 @@ Controls.propTypes = {
   classes: PropTypes.object.isRequired,
   text: PropTypes.string,
   error: PropTypes.bool,
-  errorText: PropTypes.string,
   errorAction: PropTypes.func,
+  errorText: PropTypes.string,
   onPress: PropTypes.func,
   loading: PropTypes.bool,
   loadingText: PropTypes.string,
   loadingStyle: PropTypes.string,
   loadingRender: PropTypes.func,
-  errorRender: PropTypes.func,
+  errorRender: PropTypes.node,
+  mobile: PropTypes.bool,
 };
 
 export default injectSheet(styles)(Controls);

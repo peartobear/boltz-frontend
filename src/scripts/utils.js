@@ -1,7 +1,17 @@
-import { bitcoinNetwork, litecoinNetwork } from '../constants';
+import axios from 'axios';
+import {
+  boltzApi,
+  bitcoinNetwork,
+  litecoinNetwork,
+  bitcoinExplorer,
+  litecoinExplorer,
+  bitcoinAddress,
+  litecoinAddress,
+  bitcoinInvoice,
+  litecoinInvoice,
+} from '../constants';
 
-// Number satohis and litoshis in a whole coin
-const decimals = 100000000;
+export const decimals = 100000000;
 
 /**
  * Get a hex encoded string from a Buffer
@@ -52,10 +62,17 @@ export const splitPairId = pairId => {
 };
 
 /**
+ * Round a amount to 8 decimals and trims unnecessary zeros
+ */
+export const roundWholeCoins = coins => {
+  return Number(coins.toFixed(8));
+};
+
+/**
  * Convert satoshis and litoshis to whole coins
  */
 export const toWholeCoins = satoshis => {
-  return (satoshis / decimals).toFixed(8);
+  return roundWholeCoins(satoshis / decimals);
 };
 
 /**
@@ -66,10 +83,17 @@ export const toSatoshi = coins => {
 };
 
 /**
- * Get the full name of a currency
+ * Get the full name of a symbol
  */
 export const getCurrencyName = symbol => {
   return symbol === 'BTC' ? 'Bitcoin' : 'Litecoin';
+};
+
+/**
+ * Get the name of the smallest denomination of a currency
+ */
+export const getSmallestDenomination = symbol => {
+  return symbol === 'BTC' ? 'satoshis' : 'litoshis';
 };
 
 // TODO: refactor how we copy
@@ -77,8 +101,9 @@ export const getCurrencyName = symbol => {
  * Copy the content of the element "copy" into the clipboard
  */
 export const copyToClipBoard = () => {
-  const range = document.getSelection().getRangeAt(0);
+  const range = document.createRange();
   range.selectNode(document.getElementById('copy'));
+  window.getSelection().removeAllRanges();
   window.getSelection().addRange(range);
   document.execCommand('copy');
 };
@@ -88,4 +113,83 @@ export const copyToClipBoard = () => {
  */
 export const getNetwork = symbol => {
   return symbol === 'BTC' ? bitcoinNetwork : litecoinNetwork;
+};
+
+/**
+ * Get the block explorer URL for a symbol
+ */
+export const getExplorer = symbol => {
+  return symbol === 'BTC' ? bitcoinExplorer : litecoinExplorer;
+};
+
+/**
+ * Get a sample address for a symbol
+ */
+export const getSampleAddress = symbol => {
+  return symbol === 'BTC' ? bitcoinAddress : litecoinAddress;
+};
+
+/**
+ * Get a sample invoice for a symbol
+ */
+export const getSampleInvoice = symbol => {
+  return symbol === 'BTC' ? bitcoinInvoice : litecoinInvoice;
+};
+
+/**
+ * Get the fee estimation from the Boltz API
+ */
+export const getFeeEstimation = callback => {
+  const url = `${boltzApi}/getfeeestimation`;
+  return () => {
+    axios
+      .get(url)
+      .then(response => callback(response.data))
+      .catch(error => {
+        window.alert(
+          `Failed to get fee estimations: ${error.response.data.error}`
+        );
+      });
+  };
+};
+
+/**
+ * Detect whether the browser is a mobile one
+ */
+export const isMobileBrowser = () => {
+  return (
+    typeof window.orientation !== 'undefined' ||
+    navigator.userAgent.indexOf('IEMobile') !== -1
+  );
+};
+
+/**
+ * @param {{message: string, title: string }} info title and message
+ * @param {number} alertType type of alert
+ */
+export const notificationData = (info, alertType) => {
+  let type;
+  switch (alertType) {
+    case 0:
+      type = 'danger';
+      break;
+    case 1:
+      type = 'warning';
+      break;
+    default:
+      type = 'success';
+      break;
+  }
+
+  return {
+    message: info.message,
+    title: info.title,
+    type,
+    insert: 'top-left',
+    container: 'top-left',
+    animationIn: ['animated', 'fadeIn'],
+    animationOut: ['animated', 'fadeOut'],
+    dismiss: { duration: 3500 },
+    dismissable: { click: true },
+  };
 };

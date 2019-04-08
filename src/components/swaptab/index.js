@@ -1,13 +1,13 @@
 import React from 'react';
 import PropTypes from 'prop-types';
 import injectSheet from 'react-jss';
-import { BigNumber } from 'bignumber.js';
+import { MdCompareArrows } from 'react-icons/md';
 import View from '../view';
 import Input from '../input';
 import DropDown from '../dropdown';
-import Text, { InfoText } from '../text';
-import { MIN, MAX } from '../../constants/fees';
 import Controls from '../controls';
+import Text, { InfoText } from '../text';
+import { decimals } from '../../scripts/utils';
 
 const styles = theme => ({
   wrapper: {
@@ -20,6 +20,16 @@ const styles = theme => ({
       width: '800px',
       height: '600px',
     },
+    '@media (max-width: 500px)': {
+      width: '100%',
+      height: '400px',
+    },
+  },
+  inputMobile: {
+    '@media (max-width: 500px)': {
+      width: '100px',
+      fontSize: '16px',
+    },
   },
   stats: {
     backgroundColor: theme.colors.white,
@@ -29,8 +39,7 @@ const styles = theme => ({
     alignItems: 'center',
   },
   options: {
-    height: '70%',
-    width: '100%',
+    flex: '1 0 70%',
     flexDirection: 'column',
   },
   select: {
@@ -40,8 +49,7 @@ const styles = theme => ({
   },
   next: {
     backgroundColor: theme.colors.matisseBlue,
-    height: '15%',
-    width: '100%',
+    flex: '1 0 15%',
     justifyContent: 'center',
     alignItems: 'center',
     '&:hover': {
@@ -50,13 +58,7 @@ const styles = theme => ({
   },
   nextError: {
     backgroundColor: theme.colors.tundoraGrey,
-    height: '15%',
-    width: '100%',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  controls: {
-    flex: 2,
+    flex: '1 0 15%',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -76,6 +78,19 @@ const styles = theme => ({
   text: {
     fontSize: '20px',
   },
+  arrows: {
+    height: '30px',
+    width: '30px',
+    marginLeft: '80%',
+    cursor: 'pointer',
+    transform: 'rotate(90deg)',
+    transition: 'none 200ms ease-out',
+    transitionProperty: 'color',
+    color: theme.colors.tundoraGrey,
+    '&:hover': {
+      color: theme.colors.hoverGrey,
+    },
+  },
 });
 
 class SwapTab extends React.Component {
@@ -87,10 +102,15 @@ class SwapTab extends React.Component {
 
     this.state = {
       error: false,
+      inputError: false,
       base: 'LTC',
       quote: 'BTC ⚡',
-      baseAmount: MIN,
+      minAmount: 0,
+      maxAmount: 0,
+      baseAmount: 0.001,
       quoteAmount: 0,
+      feeAmount: 0,
+      errorMessage: '',
     };
   }
 
@@ -119,75 +139,159 @@ class SwapTab extends React.Component {
     return symbol;
   };
 
-  getRate = () => {
-    return this.props.rates[
-      `${this.parseBoltSuffix(this.state.base, true)}/${this.parseBoltSuffix(
-        this.state.quote,
-        false
-      )}`
-    ];
+  getSymbol = () => {
+    return `${this.parseBoltSuffix(
+      this.state.base,
+      true
+    )}/${this.parseBoltSuffix(this.state.quote, false)}`;
+  };
+
+  componentWillMount = () => {
+    if (localStorage.getItem('quote')) {
+      this.setState({
+        base: localStorage.getItem('base'),
+        quote: localStorage.getItem('quote'),
+        baseAmount: localStorage.getItem('baseAmount'),
+      });
+    }
   };
 
   componentDidMount = () => {
+    const symbol = this.getSymbol();
+    const limits = this.props.limits[symbol];
+
     this.setState(
       {
-        rate: this.getRate(),
+        minAmount: limits.minimal,
+        maxAmount: limits.maximal,
+        rate: this.props.rates[symbol],
       },
-      () => this.updateQuoteAmount(this.state.baseAmount)
+      () => {
+        this.updateQuoteAmount(this.state.baseAmount);
+        this.componentDidUpdate({}, {});
+      }
     );
   };
 
   componentDidUpdate = (_, prevState) => {
+    const { base, quote, baseAmount } = this.state;
+
     // Update the rate if the request finished or the currencies changed
     if (
       prevState.base !== this.state.base ||
       prevState.quote !== this.state.quote
     ) {
-      const rate = this.getRate();
+      const symbol = this.getSymbol();
 
       // Swapping from chain to chain or from Lightning to Lightning is not supported right now
-      if (this.baseAsset.isLightning !== this.quoteAsset.isLightning) {
-        this.setState(
-          {
-            rate,
-            error: false,
-          },
-          () => this.updateQuoteAmount(this.state.baseAmount)
-        );
-      } else {
+      if (
+        base === quote ||
+        (this.baseAsset.isLightning && this.quoteAsset.isLightning)
+      ) {
         this.setState({
           rate: undefined,
           error: true,
+          errorMessage: 'Choose a different asset',
         });
+        return;
       }
+
+      if (!this.baseAsset.isLightning && !this.quoteAsset.isLightning) {
+        this.setState({
+          rate: undefined,
+          error: true,
+          errorMessage: 'Coming soon',
+        });
+        return;
+      }
+
+      const rate = this.props.rates[symbol];
+      const limits = this.props.limits[symbol];
+      const feePercentage = this.props.fees.percentages[symbol];
+
+      this.setState(
+        {
+          rate,
+          feePercentage,
+          minAmount: limits.minimal / decimals,
+          maxAmount: limits.maximal / decimals,
+          error: false,
+        },
+        () => this.updateQuoteAmount(this.state.baseAmount)
+      );
+    }
+
+    localStorage.setItem('base', base);
+    localStorage.setItem('quote', quote);
+    localStorage.setItem('baseAmount', baseAmount);
+  };
+
+  calculateMinerFee = () => {
+    const { minerFees } = this.props.fees;
+
+    if (this.baseAsset.isLightning) {
+      const { lockup, claim } = minerFees[this.quoteAsset.symbol].reverse;
+
+      return lockup + claim;
+    } else {
+      return minerFees[this.baseAsset.symbol].normal;
     }
   };
 
+  calculateFee = baseAmount => {
+    const { feePercentage } = this.state;
+
+    const percentageFee = baseAmount * feePercentage;
+    const minerFee = this.calculateMinerFee() / decimals;
+
+    return percentageFee + minerFee;
+  };
+
   checkBaseAmount = baseAmount => {
-    return baseAmount <= MAX && baseAmount >= MIN;
+    const { minAmount, maxAmount } = this.state;
+
+    return baseAmount <= maxAmount && baseAmount >= minAmount;
+  };
+
+  updatePair = (quote, base) => {
+    this.setState({ base, quote, error: false, errorMessage: '' });
   };
 
   updateBaseAmount = quoteAmount => {
-    const rate = new BigNumber(this.state.rate.rate);
-    const newBaseAmount = new BigNumber(quoteAmount).dividedBy(rate).toFixed(8);
-    const error = !this.checkBaseAmount(newBaseAmount);
+    const { rate } = this.state.rate;
+
+    const newBase = quoteAmount / rate;
+    const fee = this.calculateFee(newBase);
+
+    const newBaseWithFee = Number((newBase + fee).toFixed(8));
+
+    const inputError = !this.checkBaseAmount(newBaseWithFee);
 
     this.setState({
-      quoteAmount: Number.parseFloat(quoteAmount),
-      baseAmount: newBaseAmount,
-      error,
+      quoteAmount: quoteAmount,
+      baseAmount: newBaseWithFee,
+      feeAmount: fee.toFixed(8),
+      inputError,
     });
   };
 
   updateQuoteAmount = baseAmount => {
-    const rate = new BigNumber(this.state.rate.rate);
-    const newQuoteAmount = new BigNumber(baseAmount).times(rate).toFixed(8);
-    const error = !this.checkBaseAmount(baseAmount);
+    const { rate, orderSide } = this.state.rate;
+    let fee = this.calculateFee(baseAmount);
+
+    if (orderSide === 'sell') {
+      fee = fee * rate;
+    }
+
+    const quote = Number((baseAmount * rate - fee).toFixed(8));
+
+    const inputError = !this.checkBaseAmount(baseAmount);
 
     this.setState({
-      quoteAmount: newQuoteAmount,
-      baseAmount: Number.parseFloat(baseAmount),
-      error,
+      quoteAmount: Math.max(quote, 0),
+      baseAmount: baseAmount,
+      feeAmount: fee.toFixed(8),
+      inputError,
     });
   };
 
@@ -200,7 +304,10 @@ class SwapTab extends React.Component {
         base: this.baseAsset.symbol,
         quote: this.quoteAsset.symbol,
         isReverseSwap: this.baseAsset.isLightning,
-        pair: rate.pair,
+        pair: {
+          id: rate.pair,
+          orderSide: rate.orderSide,
+        },
       };
 
       this.props.onPress(state);
@@ -219,57 +326,82 @@ class SwapTab extends React.Component {
 
   render() {
     const { classes, rates, currencies } = this.props;
-    const { error, base, quote, baseAmount, quoteAmount } = this.state;
+    const {
+      base,
+      quote,
+      error,
+      minAmount,
+      maxAmount,
+      feeAmount,
+      baseAmount,
+      inputError,
+      quoteAmount,
+      errorMessage,
+    } = this.state;
 
     return (
       <View className={classes.wrapper}>
         <View className={classes.stats}>
-          <InfoText title="Min amount:" text={`${MIN}`} />
-          <InfoText title="Max amount:" text={`${MAX}`} />
-          <InfoText title="Fee:" text={'0'} />
-          <InfoText title="Rate:" text={`${this.parseRate(rates)}`} />
+          <InfoText title="Min amount" text={`${minAmount}`} />
+          <InfoText title="Max amount" text={`${maxAmount}`} />
+          <InfoText title="Fee" text={`${feeAmount}`} />
+          <InfoText title="Rate" text={`${this.parseRate(rates)}`} />
         </View>
         <View className={classes.options}>
           <View className={classes.select}>
             <Text text="You send:" className={classes.text} />
             <Input
-              min={MIN}
-              max={MAX}
-              step={MIN}
-              error={error}
+              className={classes.inputMobile}
+              min={minAmount}
+              max={maxAmount}
+              step={0.001}
+              error={inputError}
               value={baseAmount}
               onChange={e => this.updateQuoteAmount(e)}
             />
             <DropDown
+              className={classes.inputMobile}
               defaultValue={base}
               fields={currencies}
-              onChange={e => this.setState({ base: e })}
+              onChange={e => this.updatePair(quote, e)}
             />
           </View>
+          <MdCompareArrows
+            className={classes.arrows}
+            onClick={() => {
+              this.setState({
+                base: quote,
+                baseAmount: quoteAmount,
+                quote: base,
+                quoteAmount: baseAmount,
+              });
+            }}
+          />
           <View className={classes.select}>
             <Text text="You receive:" className={classes.text} />
             <Input
-              min={0.00000001}
-              max={MAX}
-              step={0.00000001}
-              error={error}
+              className={classes.inputMobile}
+              min={1 / decimals}
+              max={Number.MAX_SAFE_INTEGER}
+              step={1 / decimals}
+              error={inputError}
               value={quoteAmount}
               onChange={e => this.updateBaseAmount(e)}
             />
             <DropDown
+              className={classes.inputMobile}
               defaultValue={quote}
               fields={currencies}
-              onChange={e => this.setState({ quote: e })}
+              onChange={e => this.updatePair(e, base)}
             />
           </View>
         </View>
         <View className={classes.next}>
           <Controls
             text={'Start swap'}
-            error={error}
+            error={error || inputError}
             onPress={error ? () => {} : () => this.shouldSubmit()}
-            errorText={'Invalid amount'}
-            errorRender={() => {}}
+            errorText={inputError ? 'Invalid amount' : errorMessage}
           />
         </View>
       </View>
@@ -280,7 +412,9 @@ class SwapTab extends React.Component {
 SwapTab.propTypes = {
   classes: PropTypes.object,
   onPress: PropTypes.func,
+  fees: PropTypes.object.isRequired,
   rates: PropTypes.object.isRequired,
+  limits: PropTypes.object.isRequired,
   currencies: PropTypes.array.isRequired,
 };
 

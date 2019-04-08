@@ -1,12 +1,12 @@
 import React from 'react';
 import injectSheet from 'react-jss';
 import PropTypes from 'prop-types';
-
+import Link from '../link';
 /*
  * Link button
  */
 
-const LinkBtnStyles = theme => ({
+const ButtonStyles = theme => ({
   wrapper: {
     padding: '10px',
     color: theme.colors.white,
@@ -20,34 +20,24 @@ const LinkBtnStyles = theme => ({
   },
 });
 
-const StyledLinkButton = ({ classes, text, to, style, external, onPress }) =>
-  external ? (
-    <a
-      style={style ? style : undefined}
-      target="_blank"
-      rel="noopener noreferrer"
-      href={to}
-      className={classes.wrapper}
-    >
-      {text}
-    </a>
+const Button = ({ classes, className, text, to, external, onPress }) => {
+  const style = className ? `${classes.wrapper} ${className}` : classes.wrapper;
+  return external ? (
+    <Link text={text} to={to} className={style} />
   ) : (
-    <span
-      style={style ? style : undefined}
-      className={classes.wrapper}
-      onClick={() => onPress()}
-    >
+    <span className={style} onClick={() => onPress()}>
       {text}
     </span>
   );
-
-StyledLinkButton.propTypes = {
-  classes: PropTypes.object,
-  external: PropTypes.bool.isRequired,
-  text: PropTypes.string.isRequired,
-  to: PropTypes.string.isRequired,
-  onPress: PropTypes.func,
-  style: PropTypes.object,
 };
 
-export const LinkButton = injectSheet(LinkBtnStyles)(StyledLinkButton);
+Button.propTypes = {
+  classes: PropTypes.object,
+  external: PropTypes.bool,
+  text: PropTypes.string.isRequired,
+  to: PropTypes.string,
+  onPress: PropTypes.func,
+  className: PropTypes.string,
+};
+
+export default injectSheet(ButtonStyles)(Button);
